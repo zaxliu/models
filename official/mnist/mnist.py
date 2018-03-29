@@ -250,7 +250,7 @@ class MNISTArgParser(argparse.ArgumentParser):
 
   def __init__(self):
     super(MNISTArgParser, self).__init__(parents=[
-        parsers.BaseParser(),
+        parsers.BaseParser(multi_gpu=True, num_gpu=False),
         parsers.ImageModelParser(),
         parsers.ExportParser(),
     ])
