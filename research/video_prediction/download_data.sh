@@ -47,7 +47,12 @@ function download_file {
   DIRECTORY=`dirname ${OUTPUT_FILE}`
   echo DIRECTORY=$DIRECTORY
   mkdir -p "${DIRECTORY}"
-  curl --output ${OUTPUT_FILE} ${URL}
+  if [ -f "${OUTPUT_FILE}" ]; then
+	  echo "File ${OUTPUT_FILE} is already downloaded."
+  else
+	  echo "Downloading file ${OUTPUT_FILE}..."
+      curl --output ${OUTPUT_FILE} ${URL}
+  fi
 }
 
 while read filename; do

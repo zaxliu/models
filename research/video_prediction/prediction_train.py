@@ -28,7 +28,7 @@ from prediction_model import construct_model
 SUMMARY_INTERVAL = 40
 
 # How often to run a batch through the validation model.
-VAL_INTERVAL = 200
+VAL_INTERVAL = 2
 
 # How often to save a model checkpoint
 SAVE_INTERVAL = 2000
