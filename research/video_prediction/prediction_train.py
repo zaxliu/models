@@ -14,7 +14,8 @@
 # ==============================================================================
 
 """Code for training the prediction model."""
-
+import logging
+import traceback
 import numpy as np
 import tensorflow as tf
 
@@ -24,11 +25,17 @@ from tensorflow.python.platform import flags
 from prediction_input import build_tfrecord_input
 from prediction_model import construct_model
 
+# Logging settings
+tf_logger = logging.getLogger('tensorflow')
+ch = tf_logger.handlers[0]
+ch.setFormatter(logging.Formatter('%(asctime)s (%(name)s) |%(levelname)s| %(message)s'))
+tf.logging.set_verbosity(tf.logging.INFO) 
+
 # How often to record tensorboard summaries.
 SUMMARY_INTERVAL = 40
 
 # How often to run a batch through the validation model.
-VAL_INTERVAL = 2
+VAL_INTERVAL = 100
 
 # How often to save a model checkpoint
 SAVE_INTERVAL = 2000
@@ -117,11 +124,11 @@ class Model(object):
 
     # Split into timesteps.
     actions = tf.split(axis=1, num_or_size_splits=int(actions.get_shape()[1]), value=actions)
-    actions = [tf.squeeze(act) for act in actions]
+    actions = [tf.squeeze(act, axis=[1]) for act in actions]
     states = tf.split(axis=1, num_or_size_splits=int(states.get_shape()[1]), value=states)
-    states = [tf.squeeze(st) for st in states]
+    states = [tf.squeeze(st, axis=[1]) for st in states]
     images = tf.split(axis=1, num_or_size_splits=int(images.get_shape()[1]), value=images)
-    images = [tf.squeeze(img) for img in images]
+    images = [tf.squeeze(img, axis=[1]) for img in images]
 
     if reuse_scope is None:
       gen_images, gen_states = construct_model(
@@ -202,50 +209,53 @@ def main(unused_argv):
   saver = tf.train.Saver(
       tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES), max_to_keep=0)
 
-  # Make training session.
-  sess = tf.InteractiveSession()
-  sess.run(tf.global_variables_initializer())
-
-  summary_writer = tf.summary.FileWriter(
-      FLAGS.event_log_dir, graph=sess.graph, flush_secs=10)
-
-  if FLAGS.pretrained_model:
-    saver.restore(sess, FLAGS.pretrained_model)
-
-  tf.train.start_queue_runners(sess)
-
-  tf.logging.info('iteration number, cost')
-
-  # Run training.
-  for itr in range(FLAGS.num_iterations):
-    # Generate new batch of data.
-    feed_dict = {model.iter_num: np.float32(itr),
-                 model.lr: FLAGS.learning_rate}
-    cost, _, summary_str = sess.run([model.loss, model.train_op, model.summ_op],
-                                    feed_dict)
-
-    # Print info: iteration #, cost.
-    tf.logging.info(str(itr) + ' ' + str(cost))
-
-    if (itr) % VAL_INTERVAL == 2:
-      # Run through validation set.
-      feed_dict = {val_model.lr: 0.0,
-                   val_model.iter_num: np.float32(itr)}
-      _, val_summary_str = sess.run([val_model.train_op, val_model.summ_op],
-                                     feed_dict)
-      summary_writer.add_summary(val_summary_str, itr)
-
-    if (itr) % SAVE_INTERVAL == 2:
-      tf.logging.info('Saving model.')
-      saver.save(sess, FLAGS.output_dir + '/model' + str(itr))
-
-    if (itr) % SUMMARY_INTERVAL:
-      summary_writer.add_summary(summary_str, itr)
-
-  tf.logging.info('Saving model.')
-  saver.save(sess, FLAGS.output_dir + '/model')
-  tf.logging.info('Training complete')
-  tf.logging.flush()
+  try:
+    # Make training session.
+    sess = tf.InteractiveSession()
+    sess.run(tf.global_variables_initializer())
+  
+    summary_writer = tf.summary.FileWriter(
+        FLAGS.event_log_dir, graph=sess.graph, flush_secs=10)
+  
+    if FLAGS.pretrained_model:
+      saver.restore(sess, FLAGS.pretrained_model)
+  
+    tf.train.start_queue_runners(sess)
+  
+    tf.logging.info('iteration number, cost')
+  
+    # Run training.
+    for itr in range(FLAGS.num_iterations):
+      # Generate new batch of data.
+      feed_dict = {model.iter_num: np.float32(itr),
+                   model.lr: FLAGS.learning_rate}
+      cost, _, summary_str = sess.run([model.loss, model.train_op, model.summ_op],
+                                      feed_dict)
+  
+      # Print info: iteration #, cost.
+      tf.logging.info(str(itr) + ' ' + str(cost))
+  
+      if (itr) % VAL_INTERVAL == 2:
+        # Run through validation set.
+        feed_dict = {val_model.lr: 0.0,
+                     val_model.iter_num: np.float32(itr)}
+        _, val_summary_str = sess.run([val_model.train_op, val_model.summ_op],
+                                       feed_dict)
+        summary_writer.add_summary(val_summary_str, itr)
+  
+      if (itr) % SAVE_INTERVAL == 2:
+        tf.logging.info('Saving model.')
+        saver.save(sess, FLAGS.output_dir + '/model' + str(itr))
+  
+      if (itr) % SUMMARY_INTERVAL:
+        summary_writer.add_summary(summary_str, itr)
+  except Exception, e:
+    traceback.print_exc()
+  finally:
+    tf.logging.info('Saving model.')
+    saver.save(sess, FLAGS.output_dir + '/model')
+    tf.logging.info('Training complete')
+    tf.logging.flush()
 
 
 if __name__ == '__main__':

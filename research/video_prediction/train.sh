@@ -1,8 +1,8 @@
 python prediction_train.py \
-  --data_dir=./tmp/push/push_train \
+  --data_dir=./data/push/push_train \
   --model=CDNA \
-  --output_dir=./1/checkpoints \
-  --event_log_dir=./1/summaries \
+  --output_dir=./result/tmp/checkpoints \
+  --event_log_dir=./result/tmp/summaries \
   --num_iterations=100000 \
   --sequence_length=10 \
   --context_frames=2 \

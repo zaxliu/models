@@ -66,6 +66,8 @@ def construct_model(images,
   """
   if stp + cdna + dna != 1:
     raise ValueError('More than one, or no network option specified.')
+  print images
+  return
   batch_size, img_height, img_width, color_channels = images[0].get_shape()[0:4]
   lstm_func = basic_conv_lstm_cell
 
